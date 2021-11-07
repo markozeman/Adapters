@@ -138,6 +138,9 @@ def preprocess_hate_speech(filepath, test_split, nn_cnn):
         X_train = np.reshape(X_train, (X_train.shape[0], 32, 32, 1))
         X_test = np.reshape(X_test, (X_test.shape[0], 32, 32, 1))
 
+    # np.save('ELMo_embeddings/hate_speech/X_train_all', X_train, allow_pickle=True)
+    # np.save('ELMo_embeddings/hate_speech/X_test_all', X_test, allow_pickle=True)
+
     return X_train, y_train, X_test, y_test
 
 
@@ -192,6 +195,9 @@ def preprocess_IMDB_reviews(filepath, test_split, nn_cnn):
         X_train = np.reshape(X_train, (X_train.shape[0], 32, 32, 1))
         X_test = np.reshape(X_test, (X_test.shape[0], 32, 32, 1))
 
+    # np.save('ELMo_embeddings/sentiment_analysis/X_train_all', X_train, allow_pickle=True)
+    # np.save('ELMo_embeddings/sentiment_analysis/X_test_all', X_test, allow_pickle=True)
+
     return X_train, y_train, X_test, y_test
 
 
@@ -238,6 +244,9 @@ def preprocess_SMS_spam(filepath, test_split, nn_cnn):
     if nn_cnn == 'cnn':     # reshape 1024-dimensional vectors to squares 32x32
         X_train = np.reshape(X_train, (X_train.shape[0], 32, 32, 1))
         X_test = np.reshape(X_test, (X_test.shape[0], 32, 32, 1))
+
+    # np.save('ELMo_embeddings/sms_spam/X_train_all', X_train, allow_pickle=True)
+    # np.save('ELMo_embeddings/sms_spam/X_test_all', X_test, allow_pickle=True)
 
     return X_train, y_train, X_test, y_test
 

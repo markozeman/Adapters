@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras.utils import to_categorical
 
 
 seeds = [(i * 7) + 1 for i in range(5)]
@@ -129,4 +130,65 @@ def context_multiplication_CNN(model, context_matrices, task_index):
                 new_w = np.diag(context_matrices[task_index][i - 2]) @ curr_w  # -2 because of Flatten and MaxPooling layers
 
             layer.set_weights([new_w, curr_w_bias])
+
+
+def overlapping_tasks(data):
+    """
+    Make two CIFAR-10 tasks overlapping (50%).
+
+    :param data: list of two disjoint tasks, each task consists of: (X_train, y_train, X_test, y_test)
+    :return: list of two overlapping tasks, each task consists of: (X_train, y_train, X_test, y_test)
+    """
+    # if you want overlapping tasks: Task 1: [0, 9], Task 2: [5, 14]
+    X_train_1, y_train_1, X_test_1, y_test_1 = data[0]
+    index_train_1 = []
+    for i, y in enumerate(y_train_1):
+        if np.array_equal(y, to_categorical(5, num_classes=10)) or \
+                np.array_equal(y, to_categorical(6, num_classes=10)) or \
+                np.array_equal(y, to_categorical(7, num_classes=10)) or \
+                np.array_equal(y, to_categorical(8, num_classes=10)) or \
+                np.array_equal(y, to_categorical(9, num_classes=10)):
+            index_train_1.append(i)
+    X_train_overlap_1, y_train_overlap_1 = X_train_1[index_train_1, :, :, :], y_train_1[index_train_1]
+
+    index_test_1 = []
+    for i, y in enumerate(y_test_1):
+        if np.array_equal(y, to_categorical(5, num_classes=10)) or \
+                np.array_equal(y, to_categorical(6, num_classes=10)) or \
+                np.array_equal(y, to_categorical(7, num_classes=10)) or \
+                np.array_equal(y, to_categorical(8, num_classes=10)) or \
+                np.array_equal(y, to_categorical(9, num_classes=10)):
+            index_test_1.append(i)
+    X_test_overlap_1, y_test_overlap_1 = X_test_1[index_test_1, :, :, :], y_test_1[index_test_1]
+
+    X_train_2, y_train_2, X_test_2, y_test_2 = data[1]
+    index_train_2 = []
+    for i, y in enumerate(y_train_2):
+        if np.array_equal(y, to_categorical(0, num_classes=10)) or \
+                np.array_equal(y, to_categorical(1, num_classes=10)) or \
+                np.array_equal(y, to_categorical(2, num_classes=10)) or \
+                np.array_equal(y, to_categorical(3, num_classes=10)) or \
+                np.array_equal(y, to_categorical(4, num_classes=10)):
+            index_train_2.append(i)
+    X_train_overlap_2, y_train_overlap_2 = X_train_2[index_train_2, :, :, :], y_train_2[index_train_2]
+
+    index_test_2 = []
+    for i, y in enumerate(y_test_2):
+        if np.array_equal(y, to_categorical(0, num_classes=10)) or \
+                np.array_equal(y, to_categorical(1, num_classes=10)) or \
+                np.array_equal(y, to_categorical(2, num_classes=10)) or \
+                np.array_equal(y, to_categorical(3, num_classes=10)) or \
+                np.array_equal(y, to_categorical(4, num_classes=10)):
+            index_test_2.append(i)
+    X_test_overlap_2, y_test_overlap_2 = X_test_2[index_test_2, :, :, :], y_test_2[index_test_2]
+
+    # concatenate data from both tasks
+    overlapping_data = (np.concatenate((X_train_overlap_1, X_train_overlap_2), axis=0),
+                        np.concatenate((y_train_overlap_1, y_train_overlap_2), axis=0),
+                        np.concatenate((X_test_overlap_1, X_test_overlap_2), axis=0),
+                        np.concatenate((y_test_overlap_1, y_test_overlap_2), axis=0))
+
+    data[1] = overlapping_data
+
+    return data
 

@@ -1,8 +1,10 @@
 from prepare_data import *
+from dataset_preparation import *
 from networks import *
 from callbacks import *
 from help_functions import *
 from plots import *
+import numpy as np
 
 
 def train_model(model, X_train, y_train, X_test, y_test, num_of_epochs, nn_cnn, batch_size, validation_share,
@@ -163,7 +165,10 @@ def adapter_training(model, data, num_of_epochs, num_of_tasks, nn_cnn, batch_siz
         final_accuracies_per_task.append(accuracies[-1])
 
         # create new model with added adapter layers and freeze other layers
-        model = adapter_from_FC_model(model, input_size, num_of_units, num_of_classes)
+        if nn_cnn == 'nn':
+            model = adapter_from_FC_model(model, input_size, num_of_units, num_of_classes)
+        elif nn_cnn == 'cnn':
+            model = adapter_from_CNN_model(model, input_size, num_of_units, num_of_classes)
 
         # other training tasks
         for i in range(num_of_tasks - 1):
@@ -179,11 +184,13 @@ def adapter_training(model, data, num_of_epochs, num_of_tasks, nn_cnn, batch_siz
 
 
 if __name__ == '__main__':
-    runs = 5
+    domain = 'nlp'    # 'nlp' or 'cv'
+    runs = 3
     train_normal = False
     train_superposition = False
     train_adapters = True
-    adapters_type = 'after first'    # 'random' or 'after first'
+    adapters_type = 'random'    # 'random' or 'after first'
+    overlap_tasks = True
     accuracies_normal = []
     accuracies_superposition = []
     accuracies_adapters = []
@@ -191,33 +198,43 @@ if __name__ == '__main__':
     for r in range(runs):
         print('RUN ', r)
 
-        num_of_tasks = 3
-        num_of_epochs = 500     # epochs per task
+        num_of_tasks = 3 if domain == 'nlp' else 2
+        num_of_epochs = 1000     # epochs per task
         nn_cnn = 'nn'
         batch_size = 64
         validation_split = 0.1
         test_split = 0.1
-        # num_word_embeddings = 256   # currently not used
-        input_size = (1024, ) if nn_cnn == 'nn' else (32, 32, 1)
-        num_of_units = 30   # todo
-        num_of_classes = 2
+        if domain == 'nlp':
+            input_size = (1024, ) if nn_cnn == 'nn' else (32, 32, 1)
+        elif domain == 'cv':
+            input_size = (3072, ) if nn_cnn == 'nn' else (32, 32, 3)
+        num_of_classes = 2 if domain == 'nlp' else 10
+        num_of_units = 100
 
-        data = []
+        if domain == 'nlp':
+            data = []
 
-        X_train, y_train, X_test, y_test = preprocess_hate_speech('datasets/hate_speech.csv', test_split, nn_cnn)
-        # X_train, X_test = truncate_pad_inputs(X_train, X_test, num_word_embeddings)
-        data.append((X_train, y_train, X_test, y_test))
-        print('Hate speech:', X_train.shape, y_train.shape, X_test.shape, y_test.shape)
+            X_train, y_train, X_test, y_test = preprocess_hate_speech('datasets/hate_speech.csv', test_split, nn_cnn)
+            # X_train, X_test = truncate_pad_inputs(X_train, X_test, num_word_embeddings)
+            data.append((X_train, y_train, X_test, y_test))
+            print('Hate speech:', X_train.shape, y_train.shape, X_test.shape, y_test.shape)
 
-        X_train, y_train, X_test, y_test = preprocess_IMDB_reviews('datasets/IMDB_sentiment_analysis.csv', test_split, nn_cnn)
-        # X_train, X_test = truncate_pad_inputs(X_train, X_test, num_word_embeddings)
-        data.append((X_train, y_train, X_test, y_test))
-        print('Sentiment analysis:', X_train.shape, y_train.shape, X_test.shape, y_test.shape)
+            X_train, y_train, X_test, y_test = preprocess_IMDB_reviews('datasets/IMDB_sentiment_analysis.csv', test_split, nn_cnn)
+            # X_train, X_test = truncate_pad_inputs(X_train, X_test, num_word_embeddings)
+            data.append((X_train, y_train, X_test, y_test))
+            print('Sentiment analysis:', X_train.shape, y_train.shape, X_test.shape, y_test.shape)
 
-        X_train, y_train, X_test, y_test = preprocess_SMS_spam('datasets/sms_spam.csv', test_split, nn_cnn)
-        # X_train, X_test = truncate_pad_inputs(X_train, X_test, num_word_embeddings)
-        data.append((X_train, y_train, X_test, y_test))
-        print('SMS spam:', X_train.shape, y_train.shape, X_test.shape, y_test.shape)
+            X_train, y_train, X_test, y_test = preprocess_SMS_spam('datasets/sms_spam.csv', test_split, nn_cnn)
+            # X_train, X_test = truncate_pad_inputs(X_train, X_test, num_word_embeddings)
+            data.append((X_train, y_train, X_test, y_test))
+            print('SMS spam:', X_train.shape, y_train.shape, X_test.shape, y_test.shape)
+        elif domain == 'cv':
+            data = get_dataset('cifar', nn_cnn, input_size, num_of_classes)
+            data = data[:2]   # take only first two tasks
+
+            # if you want overlapping tasks: Task 1: [0, 9], Task 2: [5, 14]
+            if overlap_tasks:
+                data = overlapping_tasks(data)
 
         if train_normal:
             if nn_cnn == 'nn':
@@ -267,9 +284,15 @@ if __name__ == '__main__':
 
         if train_adapters:
             if adapters_type == 'random':
-                model = random_nn_adapter(input_size, num_of_units, num_of_classes)
+                if nn_cnn == 'nn':
+                    model = random_nn_adapter(input_size, num_of_units, num_of_classes)
+                elif nn_cnn == 'cnn':
+                    model = random_cnn_adapter(input_size, num_of_units, num_of_classes)
             elif adapters_type == 'after first':
-                model = nn(input_size, num_of_units, num_of_classes)
+                if nn_cnn == 'nn':
+                    model = nn(input_size, num_of_units, num_of_classes)
+                elif nn_cnn == 'cnn':
+                    model = cnn(input_size, num_of_units, num_of_classes)
             else:
                 raise ValueError("adapters_type variable must have value 'random' or 'after first'")
 
@@ -287,8 +310,12 @@ if __name__ == '__main__':
         accuracies_adapters_final = np.array(accuracies_adapters_final)
         means = np.mean(accuracies_adapters_final, axis=0)
         stds = np.std(accuracies_adapters_final, axis=0)
-        print('Task 1 accuracy: %.1f +/- %.1f\nTask 2 accuracy: %.1f +/- %.1f\nTask 3 accuracy: %.1f +/- %.1f' %
-              (means[0], stds[0], means[1], stds[1], means[2], stds[2]))
+        if domain == 'nlp':
+            print('Task 1 accuracy: %.1f +/- %.1f\nTask 2 accuracy: %.1f +/- %.1f\nTask 3 accuracy: %.1f +/- %.1f' %
+                  (means[0], stds[0], means[1], stds[1], means[2], stds[2]))
+        elif domain == 'cv':
+            print('Task 1 accuracy: %.1f +/- %.1f\nTask 2 accuracy: %.1f +/- %.1f\n' %
+                  (means[0], stds[0], means[1], stds[1]))
         plot_multiple_results([accuracies_adapters], ['Adapter model'],
                               'Adapter model with ' + nn_cnn.upper() + ' model', ['tab:blue'], 'Epoch', 'Accuracy (%)',
                               [(i + 1) * num_of_epochs for i in range(num_of_tasks - 1)], 0, 100, show_CI=True)
